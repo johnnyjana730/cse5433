@@ -46,7 +46,7 @@ void lab5fs_read_inode(struct inode *inode)
   if (!g_bdev) { printk(KERN_INFO "BLOCK DEV IS NULL!\n"); }
   bh = __bread(g_bdev, block_addr, l5sb->blocksize);
   if (!bh) { printk(KERN_INFO "BUFFER HEAD IS NULL!\n"); }
-  offset = ino % 8;
+  offset = (ino % 8) * 64;
   inode_temp = (lab5fs_ino *) bh->b_data + offset;
   
   if (!inode_temp) { printk(KERN_INFO "INODE TEMP IS NULL!\n"); }
@@ -93,7 +93,7 @@ int lab5fs_write_inode(struct inode *inode, int unused)
   unsigned long block_addr = ino/8 + 7;
   int offset;
   bh = __bread(g_bdev, block_addr, l5sb->blocksize);
-  offset = ino % 8;
+  offset = (ino % 8) * 64;
   lab5fs_ino *ondiskino = (lab5fs_ino *) bh->b_data + offset;
 
 
@@ -340,7 +340,7 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   brelse(bh);
 
   unsigned long block_num = ino_num / 8 + 7;
-  int offset = ino_num % 8;
+  int offset = (ino_num % 8) * 64;
 
   /* Create a new inode */
   printk(KERN_INFO "Creating new inode...\n");
@@ -409,7 +409,7 @@ struct dentry *lab5fs_lookup(struct inode *dir, struct dentry *dentry,
 
   for (i = 0; i < 2*l5sb->blocksize; i++) {
     int block = 7 + i / 8;
-    int offset = i % 8;    
+    int offset = (i % 8) * 64;    
     int is_valid = (map[i] == 1);
 
     if (is_valid) {
@@ -499,7 +499,7 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
 
   /* Zero out inode */
   int block = 7 + index / 8;
-  int offset = index % 8;  
+  int offset = (index % 8) * 64;  
   printk(KERN_INFO "Zeroing inode on disk...\n");
   bh = __bread(g_bdev, block, l5sb->blocksize);
   memset(bh->b_data+offset, 0, 64);
