@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "/usr/src/kernels/linux-2.6.9lab5/fs/lab5fs/lab5fs.h"
+#include "kernelFiles/lab5fs.h"
 
 lab5fs_ino create_inode(const char *fname, int dir, int sblock, int eblock)
 {
