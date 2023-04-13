@@ -74,13 +74,13 @@ int main(int argc, char *argv[]) {
     sb.inode_blocks_total = 125;
     sb.data_blocks_total  = NUM_DATA_BLOCKS;
     sb.data_blocks_free   = sb.data_blocks_total;
-    sb.inode_blocks_free  = sb.inode_blocks_total - 3;
+    sb.inode_blocks_free  = sb.inode_blocks_total - 2;
     sb.last_data_block = 0;
     fwrite(&sb, 1, sizeof(lab5fs_sb), file);
 
     /* Inode bitmap */
     fseek(file, BLOCK_N(1, sb.blocksize), SEEK_SET);
-    fprintf(file, "%c%c%c", 1, 1, 1);
+    fprintf(file, "%c%c", 1, 1);
 
     /* Data bitmap */
     // fseek(file, BLOCK_N(2, sb.blocksize), SEEK_SET);
@@ -99,9 +99,9 @@ int main(int argc, char *argv[]) {
     // fseek(file, BLOCK_N(130, sb.blocksize), SEEK_SET);
     // fwrite(c, 1, len, file);
 
-    f2 = create_inode("bar.txt", 0, 2, 2);
-    fseek(file, INODE_N(2, INODE_SIZE), SEEK_SET);
-    fwrite(&f2, 1, sizeof(lab5fs_ino), file);
+    // f2 = create_inode("bar.txt", 0, 2, 2);
+    // fseek(file, INODE_N(2, INODE_SIZE), SEEK_SET);
+    // fwrite(&f2, 1, sizeof(lab5fs_ino), file);
 
     // f3 = create_inode("biz.txt", 0, 3, 3);
     // fseek(file, INODE_N(4, sb.blocksize), SEEK_SET);
