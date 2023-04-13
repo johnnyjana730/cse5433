@@ -39,6 +39,7 @@ int get_ori_inode_number(int ino)
 }
 
 
+
 /* Superblock operations */
 void lab5fs_read_inode(struct inode *inode)
 {
@@ -102,29 +103,31 @@ int lab5fs_write_inode(struct inode *inode, int unused)
   // Read inode from disk and update
   printk(KERN_INFO "PRE: Writing inode\n");
   int ino = inode->i_ino;
-  struct buffer_head *bh;
-  unsigned long block_addr = ino / 8 + 7;
-  int offset = (ino % 8) * 64;
-  bh = __bread(g_bdev, block_addr, l5sb->blocksize);
-  lab5fs_ino *ondiskino = (lab5fs_ino *) (bh->b_data + offset);
+  // struct buffer_head *bh;
+  // int block_addr = ino / 8 + 7;
+  // int offset = (ino % 8) * 64;
 
+  // bh = __bread(g_bdev, block_addr, l5sb->blocksize);
+  // lab5fs_ino *ondiskino = (lab5fs_ino *) (bh->b_data + offset);
 
-  printk(KERN_INFO "Writing inode %d!\n", ino);
-  ondiskino->i_uid = inode->i_uid;
-  ondiskino->i_gid = inode->i_gid;
-  ondiskino->i_mode = inode->i_mode;
-  printk(KERN_INFO "inodeondiskblks %d\n", ondiskino->blocks);
-  printk(KERN_INFO "inodeblks %d\n", inode->i_blocks);
-  ondiskino->blocks = inode->i_blocks;
-  ondiskino->size = inode->i_size;
-  ondiskino->i_atime = inode->i_atime;
-  ondiskino->i_ctime = inode->i_ctime;
-  ondiskino->i_mtime = inode->i_mtime;
-  //ondiskino->name = inode->name;  //FIXME:would be strcpy
-  mark_buffer_dirty_inode(bh, inode);
-  printk(KERN_INFO "Done marking as dirty\n");
+  // printk(KERN_INFO "Writing inode %d %s!\n", ino, ondiskino->name);
+  // printk(KERN_INFO "Writing block_addr = %d, offset = %d!\n", block_addr, offset);
+  // ondiskino->i_uid = inode->i_uid;
+  // ondiskino->i_gid = inode->i_gid;
+  // ondiskino->i_mode = inode->i_mode;
+  // printk(KERN_INFO "inodeondiskblks %d\n", ondiskino->blocks);
+  // printk(KERN_INFO "inodeblks %d\n", inode->i_blocks);
+  // ondiskino->blocks = inode->i_blocks;
+  // ondiskino->size = inode->i_size;
+  // ondiskino->i_atime = inode->i_atime;
+  // ondiskino->i_ctime = inode->i_ctime;
+  // ondiskino->i_mtime = inode->i_mtime;
+  // // strcpy(ondiskino->name, ondiskino->name);
+  // //ondiskino->name = inode->name;  //FIXME:would be strcpy
+  // // mark_buffer_dirty_inode(bh, inode);
+  // printk(KERN_INFO "Done marking as dirty\n");
 
-  brelse(bh);
+  // brelse(bh);
   return 0;
 } /* write_inode */
 
@@ -294,7 +297,7 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
   brelse(bh);
 
   printk(KERN_INFO "About to do filldir\n");
-  retval = filldir(dirent, l5inode->name, 256, filp->f_pos, in->i_ino, DT_REG);
+  retval = filldir(dirent, l5inode->name, 21, filp->f_pos, in->i_ino, DT_REG);
   printk(KERN_INFO "Updating filepos\n");
   filp->f_pos++;
 
@@ -368,7 +371,7 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   new_ino->i_ctime = CURRENT_TIME;
   strcpy(new_ino->name, name);
   new_ino->is_hard_link = 1;
-  new_ino->block_to_link_to = get_ori_inode_number(ino);
+  new_ino->block_to_link_to = ino;
   printk(KERN_INFO "BLock to link ino to: %lu\n", new_ino->block_to_link_to);
   mark_buffer_dirty(bh);
   brelse(bh);
@@ -502,8 +505,12 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
   if (inode->i_nlink == 1) {
     printk(KERN_INFO "Removing data blocks as well...\n");
     printk(KERN_INFO "DB %lu being cleared...\n", 132+index);
-    bh = __bread(g_bdev, 132+index, l5sb->blocksize);
-    memset(bh->b_data, 0, l5sb->blocksize);
+
+    int d_block = 132 + (index * 8000) / l5sb->blocksize;  
+    int d_offset = (index * 8000) % l5sb->blocksize;
+
+    bh = __bread(g_bdev, d_block, l5sb->blocksize);
+    memset((bh->b_data + d_offset), 0, 8000);
     mark_buffer_dirty(bh);
     brelse(bh);
   }
@@ -513,10 +520,10 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
 
   /* Zero out inode */
   int block = 7 + index / 8;
-  int offset = index % 8;  
+  int offset = (index % 8) * 64;
   printk(KERN_INFO "Zeroing inode on disk...\n");
   bh = __bread(g_bdev, block, l5sb->blocksize);
-  memset(bh->b_data+offset, 0, 64);
+  memset((bh->b_data+offset), 0, 64);
   mark_buffer_dirty(bh);
   brelse(bh);
 
@@ -600,7 +607,7 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   ino_meta.block_to_link_to = 0;
   ino_meta.is_hard_link = 0;
   ino_meta.i_mode = mode;
-  memcpy((bh_meta->b_data + offset), &ino_meta, sizeof(lab5fs_ino));
+  memcpy((bh_meta->b_data + offset), &ino_meta, sizeof(ino_meta));
   mark_buffer_dirty(bh_meta);
   brelse(bh_meta);
 

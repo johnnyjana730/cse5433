@@ -10,6 +10,7 @@
 #define BLOCK_SIZE 512
 #define NUM_INODES 1000
 #define INODE_SIZE 64
+#define DATABLOCK_SIZE 8000
 #define NUM_DATA_BLOCKS 16384
 
 /* Macros */

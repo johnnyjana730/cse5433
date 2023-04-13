@@ -64,6 +64,10 @@ int main(int argc, char *argv[]) {
     /* Write superblock */
     sb.magic_num = LAB5FS_SB_MAGIC_NUM;
     sb.blocksize = BLOCK_SIZE;
+    sb.inode_size = INODE_SIZE;
+    // sb.d_size = DATABLOCK_SIZE;
+
+    
     sb.blocksize_bits = 9;
     sb.max_bytes = sb.blocksize;
     sb.inode_bitmap_loc = BLOCK_N(1, sb.blocksize);
