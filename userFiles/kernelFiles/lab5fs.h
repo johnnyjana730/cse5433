@@ -6,7 +6,7 @@
 
 /* Definitions */
 #define LAB5FS_SB_MAGIC_NUM  0xCAFECAFE
-#define MAX_FILE_NAME_LEN    21
+#define MAX_FILE_NAME_LEN    10
 #define BLOCK_SIZE 512
 #define NUM_INODES 1000
 #define INODE_SIZE 64
@@ -64,8 +64,8 @@ typedef struct lab5fs_ino {
 
 
     /* For the data blocks */
-    __u32 i_sblock;
-    __u32 i_eblock;
+    // __u32 i_sblock;
+    // __u32 i_eblock;
 
     /* Link data */
     __u8 is_hard_link;

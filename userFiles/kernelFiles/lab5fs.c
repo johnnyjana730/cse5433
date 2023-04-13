@@ -206,7 +206,7 @@ static struct super_operations lab5fs_ops = {
 int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
   printk(KERN_INFO "********Inside lab5fs_readdir********\n");
-  printk(KERN_INFO "READING FROM %d\n", filp->f_pos);
+  // printk(KERN_INFO "READING FROM %d\n", filp->f_pos);
   int retval = 0, i, inode_index = 0;
   char *map = NULL;
   struct inode *in;
@@ -217,26 +217,26 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
   /* Check bounds of directory */
   if (filp->f_pos > (l5sb->inode_blocks_total - l5sb->inode_blocks_free)) {
-    printk(KERN_INFO "At end of directory\n");
+    // printk(KERN_INFO "At end of directory\n");
     return 0;
   }
 
   /* Read . or .. from directory entry */
   if (filp->f_pos == 0) {
     /* . dir */
-    printk(KERN_INFO "Getting .\n");
+    // printk(KERN_INFO "Getting .\n");
     retval = filldir(dirent, ".", 1, filp->f_pos, 19, DT_DIR);//dir->i_ino, DT_DIR);
-    printk(KERN_INFO "Inode num %d...\n", dir->i_ino);
+    // printk(KERN_INFO "Inode num %d...\n", dir->i_ino);
     //if (retval < 0) goto done;
     filp->f_pos++;
     goto done;
   } 
   if (filp->f_pos == 1) {
     /* .. dir */
-    printk(KERN_INFO "Getting ..\n");
+    // printk(KERN_INFO "Getting ..\n");
     retval = filldir(dirent, "..", 2, filp->f_pos,
                      20, DT_DIR);//de->d_parent->d_inode->i_ino, DT_DIR);
-    printk(KERN_INFO "Inode num %d...\n", de->d_parent->d_inode->i_ino);
+    // printk(KERN_INFO "Inode num %d...\n", de->d_parent->d_inode->i_ino);
     //if (retval < 0) goto done;
     filp->f_pos++;
     goto done;
@@ -256,7 +256,7 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
       // printk(KERN_INFO "inode_index (used) = %d\n", inode_index);
 
       if (inode_index == filp->f_pos - 1) {
-        printk(KERN_INFO "found i = %d\n", i);
+        // printk(KERN_INFO "found i = %d\n", i);
         break;
       }
     } else {
@@ -268,17 +268,17 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
   unsigned long block_num = i / 8 + 7;
   int offset = (i % 8) * 64;
-  printk(KERN_INFO "Reading from block %d\n", block_num);
-  printk(KERN_INFO "Reading from block offset %d\n", offset);
+  // printk(KERN_INFO "Reading from block %d\n", block_num);
+  // printk(KERN_INFO "Reading from block offset %d\n", offset);
 
   bh = __bread(g_bdev, block_num, l5sb->blocksize);
   l5inode = (lab5fs_ino *) (bh->b_data + offset);
 
   in = (struct inode *) kmalloc(sizeof(struct inode), GFP_KERNEL);
   in->i_ino = filp->f_pos + 2; //FIXME
-  printk(KERN_INFO "Inode num %d...\n", in->i_ino);
-  printk(KERN_INFO "MODE: %lu\n", l5inode->i_mode);
-  printk(KERN_INFO "name: %s\n", l5inode->name);
+  // printk(KERN_INFO "Inode num %d...\n", in->i_ino);
+  // printk(KERN_INFO "MODE: %lu\n", l5inode->i_mode);
+  // printk(KERN_INFO "name: %s\n", l5inode->name);
   
   in->i_mode = l5inode->i_mode;
   in->i_uid = l5inode->i_uid;
@@ -286,7 +286,7 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
   in->i_atime = l5inode->i_atime; 
   in->i_mtime = l5inode->i_mtime;
   in->i_ctime = l5inode->i_ctime;
-  printk(KERN_INFO "CTIME: %lu\n", l5inode->i_ctime);
+  // printk(KERN_INFO "CTIME: %lu\n", l5inode->i_ctime);
   in->i_blocks = l5inode->blocks;
   in->i_size = l5inode->size;
   in->i_blksize = l5sb->blocksize;
@@ -296,16 +296,16 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
   //in->i_mapping->a_ops = &lab5fs_aspace_operations;
   brelse(bh);
 
-  printk(KERN_INFO "About to do filldir\n");
+  // printk(KERN_INFO "About to do filldir\n");
   retval = filldir(dirent, l5inode->name, 21, filp->f_pos, in->i_ino, DT_REG);
-  printk(KERN_INFO "Updating filepos\n");
+  // printk(KERN_INFO "Updating filepos\n");
   filp->f_pos++;
 
  done:
   /* Update access time */
   filp->f_version = dir->i_version;
   update_atime(dir);
-  printk(KERN_INFO "Going to return %d...\n", retval);
+  // printk(KERN_INFO "Going to return %d...\n", retval);
   return 0;
 } /* readdir */
 
@@ -340,13 +340,13 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   int name_len = new->d_name.len;
 
   /* Find free bit for new inode */
-  printk(KERN_INFO "Finding bit to assign inum...\n");
+  // printk(KERN_INFO "Finding bit to assign inum...\n");
   struct buffer_head *bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
   char *map = (char*) bh->b_data;
   int ino_num = find_first_free_index(map);
 
   if (ino_num <= 0) {
-    printk(KERN_INFO "Couldn't get a free bit\n");
+    // printk(KERN_INFO "Couldn't get a free bit\n");
     return -ENOSPC;
   }
 
@@ -372,7 +372,7 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   strcpy(new_ino->name, name);
   new_ino->is_hard_link = 1;
   new_ino->block_to_link_to = ino;
-  printk(KERN_INFO "BLock to link ino to: %lu\n", new_ino->block_to_link_to);
+  // printk(KERN_INFO "BLock to link ino to: %lu\n", new_ino->block_to_link_to);
   mark_buffer_dirty(bh);
   brelse(bh);
 
@@ -416,7 +416,7 @@ static struct file_operations lab5fs_dir_operations = {
 struct dentry *lab5fs_lookup(struct inode *dir, struct dentry *dentry,
                              struct nameidata *nd) 
 {
-  printk(KERN_INFO "********Inside lab5fs_lookup ********\n");
+  printk(KERN_INFO "********Inside lab5fs_lookup ********%s\n", dentry->d_iname);
   struct buffer_head *bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
   char *map = (char *) bh->b_data;
   int i;
@@ -424,7 +424,7 @@ struct dentry *lab5fs_lookup(struct inode *dir, struct dentry *dentry,
 
   for (i = 0; i < 2*l5sb->blocksize; i++) {
     // int block = 7 + i / 8;
-    unsigned long block_num = i / 8 + 7;
+    int block_num = i / 8 + 7;
     int offset = (i % 8) * 64;
 
     int is_valid = (map[i] == 1);
@@ -435,9 +435,11 @@ struct dentry *lab5fs_lookup(struct inode *dir, struct dentry *dentry,
 
       if (strcmp(ino->name, dentry->d_iname) == 0) {
         /* Found file */
+        printk(KERN_INFO "******* Found File ******** %s number = %d\n", ino->name, i);
         _inode = iget(dir->i_sb, i);
 
         if (!_inode) {
+          // printk(KERN_INFO "BUT ERR_PTR\n");
           return ERR_PTR(-EACCES);
         }
 
@@ -485,50 +487,51 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
   printk(KERN_INFO "********Inside lab5fs_unlink********\n");
   struct inode *inode = dentry->d_inode;
   int index = inode->i_ino;
+  printk(KERN_INFO "********dentry->d_iname %s, index %d ********\n", dentry->d_iname, index);
   lab5fs_sb *sb = NULL;
 
-  printk(KERN_INFO "Reading inode map...\n");
+  printk(KERN_INFO "Reading inode map...$d\n", g_bdev);
   struct buffer_head *bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
   char *map = (char*) bh->b_data;
 
   /* Free entry in map */
   if (map[index] == 0) {
-    printk(KERN_INFO "Trying to free unused block!!! ERROR!!\n");
+    // printk(KERN_INFO "Trying to free unused block!!! ERROR!!\n");
     return FILE_SYSTEM_NO_ENTRY_ERROR;
   }
-  printk(KERN_INFO "Marking inode free...\n");
+  // printk(KERN_INFO "Marking inode free...\n");
   map[index] = 0;
   mark_buffer_dirty(bh);
   brelse(bh);
 
   /* Free data blocks if need be */
-  if (inode->i_nlink == 1) {
-    printk(KERN_INFO "Removing data blocks as well...\n");
-    printk(KERN_INFO "DB %lu being cleared...\n", 132+index);
+  // if (inode->i_nlink == 1) {
+    // printk(KERN_INFO "Removing data blocks as well...\n");
+    // printk(KERN_INFO "DB %lu being cleared...\n", 132+index);
 
-    int d_block = 132 + (index * 8000) / l5sb->blocksize;  
-    int d_offset = (index * 8000) % l5sb->blocksize;
+    // int d_block = 132 + (index * 8000) / l5sb->blocksize;  
+    // int d_offset = (index * 8000) % l5sb->blocksize;
 
-    bh = __bread(g_bdev, d_block, l5sb->blocksize);
-    memset((bh->b_data + d_offset), 0, 8000);
-    mark_buffer_dirty(bh);
-    brelse(bh);
-  }
+    // bh = __bread(g_bdev, d_block, l5sb->blocksize);
+    // memset((bh->b_data + d_offset), 0, 8000);
+    // mark_buffer_dirty(bh);
+    // brelse(bh);
+  // }
   
   //inode->i_nlink--;
   //printk(KERN_INFO "Number of links is %d\n", inode->i_nlink);
 
   /* Zero out inode */
-  int block = 7 + index / 8;
-  int offset = (index % 8) * 64;
-  printk(KERN_INFO "Zeroing inode on disk...\n");
-  bh = __bread(g_bdev, block, l5sb->blocksize);
-  memset((bh->b_data+offset), 0, 64);
-  mark_buffer_dirty(bh);
-  brelse(bh);
+  // int block = 7 + index / 8;
+  // int offset = (index % 8) * 64;
+  // printk(KERN_INFO "Zeroing inode on disk...\n");
+  // bh = __bread(g_bdev, block, l5sb->blocksize);
+  // memset((bh->b_data+offset), 0, sizeof(lab5fs_ino));
+  // mark_buffer_dirty(bh);
+  // brelse(bh);
 
   /* Update free inodes */
-  printk(KERN_INFO "Updating free inode count...\n");
+  // printk(KERN_INFO "Updating free inode count...\n");
   bh = __bread(g_bdev, 0, l5sb->blocksize);
   sb = (lab5fs_sb*) bh->b_data;
   sb->inode_blocks_free++;
@@ -551,7 +554,7 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   char *map = NULL;
 
   /* Find first place open in bitmap for inode */
-  printk(KERN_INFO "Finding bit to assign inum...\n");
+  // printk(KERN_INFO "Finding bit to assign inum...\n");
   bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
   map = (char*) bh->b_data;
   ino_num = find_first_free_index(map);
@@ -562,7 +565,7 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   }
 
   /* Create a new inode */
-  printk(KERN_INFO "Creating new inode...\n");
+  // printk(KERN_INFO "Creating new inode...%d\n", ino_num);
   new_ino = new_inode(g_sb);
 
   if (!new_ino) {
@@ -591,8 +594,8 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   }
 
   /* Create new inode metadata on disk */
-  printk(KERN_INFO "File name is %s\n", nd->last.name);
-  printk(KERN_INFO "Creating new inode, ino_num = %d ...\n", ino_num);
+  // printk(KERN_INFO "File name is %s\n", nd->last.name);
+  printk(KERN_INFO "Creating new inode, %s ino_num = %d ...\n", nd->last.name,  ino_num);
 
   unsigned long block_num = ino_num / 8 + 7;
   int offset = (ino_num % 8) * 64;
@@ -612,18 +615,18 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   brelse(bh_meta);
 
   /* Mark bit in bitmap as now-used */
-  printk(KERN_INFO "Marking bitmap for inode as used\n");
+  // printk(KERN_INFO "Marking bitmap for inode as used\n");
   map[ino_num] = 1; //FIXME: Look at me
   mark_buffer_dirty(bh);
   brelse(bh);
 
   /* Mark actual inode as needing to be written to disk */
-  printk(KERN_INFO "Marking new inode as need-to-be-written\n");
-  printk(KERN_INFO "insert to hash\n");
+  // printk(KERN_INFO "Marking new inode as need-to-be-written\n");
+  // printk(KERN_INFO "insert to hash\n");
   insert_inode_hash(new_ino);
-  printk(KERN_INFO "mark dirty\n");
+  // printk(KERN_INFO "mark dirty\n");
   mark_inode_dirty(new_ino);
-  printk(KERN_INFO "done marking dirty...\n");
+  // printk(KERN_INFO "done marking dirty...\n");
 
   /* Modify free count in sb */
   bh = __bread(g_bdev, 0, l5sb->blocksize);
@@ -643,23 +646,46 @@ int lab5fs_get_block(struct inode *ino, sector_t block_offset,
 {
   printk(KERN_INFO "******* get_block *********\n");
   printk(KERN_INFO "BO: %lu\n", block_offset);
-  printk(KERN_INFO "DATA LOC: %lu\n", DATA_N(ino->i_ino, l5sb->blocksize)/l5sb->blocksize);
 
-  struct buffer_head *bh = __bread(g_bdev, 3+ino->i_ino, l5sb->blocksize);
-  lab5fs_ino *_ino = (lab5fs_ino*) bh->b_data;
+  unsigned long block_num = ino->i_ino / 8 + 7;
+  int offset = (ino->i_ino % 8) * 64;
+  // printk(KERN_INFO "Reading from block %d\n", block_num);
+  // printk(KERN_INFO "Reading from block offset %d\n", offset);
 
-  printk(KERN_INFO "Is hard link: %d\n", (_ino->is_hard_link));
+  // bh = __bread(g_bdev, block_num, l5sb->blocksize);
+  // l5inode = (lab5fs_ino *) (bh->b_data + offset);
+
+  struct buffer_head *bh = __bread(g_bdev, block_num, l5sb->blocksize);
+  lab5fs_ino *_ino = (lab5fs_ino *) (bh->b_data + offset);
+
+  int index = ino->i_ino;
+
   if (_ino->is_hard_link) {
-     printk(KERN_INFO "Is hard link!!!! -- btlt: %d\n", _ino->block_to_link_to);
-     map_bh(bh_result, g_sb, _ino->block_to_link_to);
-     brelse(bh);
-     return 0;
+     index = get_ori_inode_number(index);
   }
 
-  if (block_offset == 0) {
-     map_bh(bh_result, g_sb, DATA_N(ino->i_ino, l5sb->blocksize)/l5sb->blocksize);
-     return 0;
-  }
+  long phys;
+  long i_sblock =  132 + (index * 8000) / l5sb->blocksize;  
+  long i_eblock =  132 + ((index +1) * 8000) / l5sb->blocksize;  
+  phys = i_sblock + block_offset;
+  
+  if (phys <= i_eblock) {
+    map_bh(bh_result, g_sb, phys);
+    return 0;
+  }  
+
+  // printk(KERN_INFO "Is hard link: %d\n", (_ino->is_hard_link));
+  // if (_ino->is_hard_link) {
+  //    printk(KERN_INFO "Is hard link!!!! -- btlt: %d\n", _ino->block_to_link_to);
+  //    map_bh(bh_result, g_sb, _ino->block_to_link_to);
+  //    brelse(bh);
+  //    return 0;
+  // }
+
+  // if (block_offset == 0) {
+  //    map_bh(bh_result, g_sb, DATA_N(ino->i_ino, l5sb->blocksize)/l5sb->blocksize);
+  //    return 0;
+  // }
 
   return FILE_SYSTEM_OUT_OF_SPACE;
 }
