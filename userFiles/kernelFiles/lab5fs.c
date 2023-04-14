@@ -26,6 +26,7 @@ typedef enum _filesystem_errors
 
 int get_ori_inode_number(int ino)
 {
+
   unsigned long block_num = ino / 8 + 7;
   int offset = (ino % 8) * 64;
   struct buffer_head *bh = NULL;
@@ -33,6 +34,7 @@ int get_ori_inode_number(int ino)
   struct lab5fs_ino *tmp_ino = (lab5fs_ino*) (bh->b_data + offset);
   brelse(bh);
   if (tmp_ino->is_hard_link == 1){
+    printk(KERN_INFO "node %s, is_hard_link block_to_link_to %d\n", tmp_ino->name, tmp_ino->block_to_link_to);
     return get_ori_inode_number(tmp_ino->block_to_link_to);
   }
   return ino;
@@ -103,31 +105,31 @@ int lab5fs_write_inode(struct inode *inode, int unused)
   // Read inode from disk and update
   printk(KERN_INFO "PRE: Writing inode\n");
   int ino = inode->i_ino;
-  // struct buffer_head *bh;
-  // int block_addr = ino / 8 + 7;
-  // int offset = (ino % 8) * 64;
+  struct buffer_head *bh;
+  int block_addr = ino / 8 + 7;
+  int offset = (ino % 8) * 64;
 
-  // bh = __bread(g_bdev, block_addr, l5sb->blocksize);
-  // lab5fs_ino *ondiskino = (lab5fs_ino *) (bh->b_data + offset);
+  bh = __bread(g_bdev, block_addr, l5sb->blocksize);
+  lab5fs_ino *ondiskino = (lab5fs_ino *) (bh->b_data + offset);
 
   // printk(KERN_INFO "Writing inode %d %s!\n", ino, ondiskino->name);
   // printk(KERN_INFO "Writing block_addr = %d, offset = %d!\n", block_addr, offset);
-  // ondiskino->i_uid = inode->i_uid;
-  // ondiskino->i_gid = inode->i_gid;
-  // ondiskino->i_mode = inode->i_mode;
+  ondiskino->i_uid = inode->i_uid;
+  ondiskino->i_gid = inode->i_gid;
+  ondiskino->i_mode = inode->i_mode;
   // printk(KERN_INFO "inodeondiskblks %d\n", ondiskino->blocks);
   // printk(KERN_INFO "inodeblks %d\n", inode->i_blocks);
-  // ondiskino->blocks = inode->i_blocks;
-  // ondiskino->size = inode->i_size;
-  // ondiskino->i_atime = inode->i_atime;
-  // ondiskino->i_ctime = inode->i_ctime;
-  // ondiskino->i_mtime = inode->i_mtime;
+  ondiskino->blocks = inode->i_blocks;
+  ondiskino->size = inode->i_size;
+  ondiskino->i_atime = inode->i_atime;
+  ondiskino->i_ctime = inode->i_ctime;
+  ondiskino->i_mtime = inode->i_mtime;
   // // strcpy(ondiskino->name, ondiskino->name);
   // //ondiskino->name = inode->name;  //FIXME:would be strcpy
-  // // mark_buffer_dirty_inode(bh, inode);
+  mark_buffer_dirty_inode(bh, inode);
   // printk(KERN_INFO "Done marking as dirty\n");
 
-  // brelse(bh);
+  brelse(bh);
   return 0;
 } /* write_inode */
 
@@ -354,11 +356,11 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   mark_buffer_dirty(bh);
   brelse(bh);
 
-  unsigned long block_num = ino_num / 8 + 7;
+  int block_num = ino_num / 8 + 7;
   int offset = (ino_num % 8) * 64;
 
   /* Create a new inode */
-  printk(KERN_INFO "Creating new inode, ino_num = %d ...\n", ino_num);
+  printk(KERN_INFO "Creating new inode, ino_num = %d link to %d ...\n", ino_num, ino);
   bh = __bread(g_bdev, block_num, l5sb->blocksize);
   struct lab5fs_ino *new_ino = (lab5fs_ino*) (bh->b_data + offset);
   new_ino->i_uid = inode->i_uid;
@@ -373,6 +375,7 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   new_ino->is_hard_link = 1;
   new_ino->block_to_link_to = ino;
   // printk(KERN_INFO "BLock to link ino to: %lu\n", new_ino->block_to_link_to);
+  memcpy((bh->b_data + offset), &new_ino, sizeof(new_ino));
   mark_buffer_dirty(bh);
   brelse(bh);
 
@@ -490,7 +493,7 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
   printk(KERN_INFO "********dentry->d_iname %s, index %d ********\n", dentry->d_iname, index);
   lab5fs_sb *sb = NULL;
 
-  printk(KERN_INFO "Reading inode map...$d\n", g_bdev);
+  // printk(KERN_INFO "Reading inode map...$d\n", g_bdev);
   struct buffer_head *bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
   char *map = (char*) bh->b_data;
 
@@ -637,7 +640,7 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   brelse(bh);
 
   d_instantiate(dentry, new_ino);
-  printk(KERN_INFO "after instantiate...\n");
+  // printk(KERN_INFO "after instantiate...\n");
   return 0;
 } /* lab5fs_create */
 
@@ -658,17 +661,22 @@ int lab5fs_get_block(struct inode *ino, sector_t block_offset,
   struct buffer_head *bh = __bread(g_bdev, block_num, l5sb->blocksize);
   lab5fs_ino *_ino = (lab5fs_ino *) (bh->b_data + offset);
 
+
   int index = ino->i_ino;
 
-  if (_ino->is_hard_link) {
-     index = get_ori_inode_number(index);
+  printk(KERN_INFO "node %s, i_ino %d, hard link %d\n", _ino->name, index, _ino->is_hard_link);
+
+  if (_ino->is_hard_link == 1) {
+     printk(KERN_INFO "is_hard_link block_to_link_to %d\n", _ino->block_to_link_to);
+     index = _ino->block_to_link_to;
   }
 
   long phys;
   long i_sblock =  132 + (index * 8000) / l5sb->blocksize;  
   long i_eblock =  132 + ((index +1) * 8000) / l5sb->blocksize;  
   phys = i_sblock + block_offset;
-  
+
+  printk(KERN_INFO "i_sblock %d, i_eblock %d\n", i_sblock, i_eblock);
   if (phys <= i_eblock) {
     map_bh(bh_result, g_sb, phys);
     return 0;

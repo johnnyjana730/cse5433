@@ -34,8 +34,6 @@ lab5fs_ino create_inode(const char *fname, int dir, int sblock, int eblock)
     i.i_atime = ctime;
     i.i_mtime = ctime;
     i.i_ctime = ctime;
-    i.i_sblock = sblock;
-    i.i_eblock = eblock;
     i.blocks = (sblock == 0) ? 0 : 1;
     i.is_hard_link     = 0;
     i.block_to_link_to = 0;
@@ -67,7 +65,7 @@ int main(int argc, char *argv[]) {
     sb.inode_size = INODE_SIZE;
     // sb.d_size = DATABLOCK_SIZE;
 
-    
+
     sb.blocksize_bits = 9;
     sb.max_bytes = sb.blocksize;
     sb.inode_bitmap_loc = BLOCK_N(1, sb.blocksize);
