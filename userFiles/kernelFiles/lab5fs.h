@@ -68,7 +68,7 @@ typedef struct lab5fs_ino {
     // __u32 i_eblock;
 
     /* Link data */
-    __u8 is_hard_link;
+    __u32 is_hard_link;
     __u32 block_to_link_to;
 } lab5fs_ino;
 

@@ -336,68 +336,168 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   printk(KERN_INFO "********* lab5fs_link ***********\n");
 
   /* Get old inode */
+  struct inode *new_ino = NULL;
+  lab5fs_sb *sb = NULL;
   struct inode *inode = old->d_inode;
   int ino = inode->i_ino;
   char *name = new->d_name.name;
   int name_len = new->d_name.len;
+  char *map = NULL;
+  int ino_num = -1;
 
   /* Find free bit for new inode */
   // printk(KERN_INFO "Finding bit to assign inum...\n");
-  struct buffer_head *bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
-  char *map = (char*) bh->b_data;
-  int ino_num = find_first_free_index(map);
+
+  struct buffer_head *bh = NULL;
+  struct buffer_head *bh_meta = NULL;
+  bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
+  map = (char*) bh->b_data;
+  ino_num = find_first_free_index(map);
 
   if (ino_num <= 0) {
-    // printk(KERN_INFO "Couldn't get a free bit\n");
+    printk(KERN_INFO "Couldn't get a free bit\n");
     return -ENOSPC;
   }
 
-  map[ino_num] = 1;
-  mark_buffer_dirty(bh);
-  brelse(bh);
+  new_ino = new_inode(g_sb);
+
+  if (!new_ino) {
+    printk(KERN_INFO "Couldn't create new inode\n");
+    return -ENOMEM;
+  }
+
+  new_ino->i_ino = ino_num;
+  new_ino->i_mode = inode->i_mode;
+  new_ino->i_blksize = l5sb->blocksize;
+  new_ino->i_sb = g_sb;
+  new_ino->i_uid= current->fsuid;
+  new_ino->i_gid = current->fsgid;
+  new_ino->i_mtime = new_ino->i_ctime = new_ino->i_atime = CURRENT_TIME;
+  new_ino->i_blkbits = 9;
+  new_ino->i_op = &lab5fs_inode_operations;
+  new_ino->i_fop = &lab5fs_file_operations;
+  new_ino->i_mapping->a_ops = &lab5fs_aspace_operations;
+
+  new_ino->i_uid = inode->i_uid;
+  new_ino->i_gid = inode->i_gid;
+  new_ino->i_blocks = inode->i_blocks;
+  new_ino->i_size = inode->i_size;
+
+  /* Create new inode metadata on disk */
+  // printk(KERN_INFO "File name is %s\n", nd->last.name);
 
   int block_num = ino_num / 8 + 7;
   int offset = (ino_num % 8) * 64;
 
-  /* Create a new inode */
+  // bh_meta = __bread(g_bdev, block_num, l5sb->blocksize);
+  // ino_meta = (lab5fs_ino *) (bh_meta->b_data + offset);
+  lab5fs_ino ino_meta;
+  bh_meta = __bread(g_bdev, block_num, l5sb->blocksize);
   printk(KERN_INFO "Creating new inode, ino_num = %d link to %d ...\n", ino_num, ino);
-  bh = __bread(g_bdev, block_num, l5sb->blocksize);
-  struct lab5fs_ino *new_ino = (lab5fs_ino*) (bh->b_data + offset);
-  new_ino->i_uid = inode->i_uid;
-  new_ino->i_gid = inode->i_gid;
-  new_ino->i_mode = inode->i_mode;
-  new_ino->blocks = inode->i_blocks;
-  new_ino->size = inode->i_size;
-  new_ino->i_atime = CURRENT_TIME;
-  new_ino->i_mtime = CURRENT_TIME;
-  new_ino->i_ctime = CURRENT_TIME;
-  strcpy(new_ino->name, name);
-  new_ino->is_hard_link = 1;
-  new_ino->block_to_link_to = ino;
-  // printk(KERN_INFO "BLock to link ino to: %lu\n", new_ino->block_to_link_to);
-  memcpy((bh->b_data + offset), &new_ino, sizeof(new_ino));
+  // strcpy(i.name, fname);
+  strcpy(ino_meta.name, name);
+  // ino_meta.block_to_link_to = 0;
+  // ino_meta.is_hard_link = 0;
+  ino_meta.i_uid = inode->i_uid;
+  ino_meta.i_gid = inode->i_gid;
+  ino_meta.i_mode = inode->i_mode;
+  ino_meta.blocks = inode->i_blocks;
+  ino_meta.size = inode->i_size;
+  ino_meta.i_atime = CURRENT_TIME;
+  ino_meta.i_mtime = CURRENT_TIME;
+  ino_meta.i_ctime = CURRENT_TIME;
+  strcpy(ino_meta.is_hard_link, 1);
+  strcpy(ino_meta.block_to_link_to, ino);
+  // ino_meta.is_hard_link = 1;
+  // ino_meta.block_to_link_to = ino;
+  memcpy((bh_meta->b_data + offset), &ino_meta, sizeof(ino_meta));
+  mark_buffer_dirty(bh_meta);
+  brelse(bh_meta);
+
+  /* Mark bit in bitmap as now-used */
+  // printk(KERN_INFO "Marking bitmap for inode as used\n");
+  map[ino_num] = 1; //FIXME: Look at me
   mark_buffer_dirty(bh);
   brelse(bh);
 
-  /* Read inode */
-  /* Maybe not? */
+  /* Mark actual inode as needing to be written to disk */
+  // printk(KERN_INFO "Marking new inode as need-to-be-written\n");
+  // printk(KERN_INFO "insert to hash\n");
+  insert_inode_hash(new_ino);
+  // printk(KERN_INFO "mark dirty\n");
+  mark_inode_dirty(new_ino);
+  // printk(KERN_INFO "done marking dirty...\n");
 
   /* Modify free count in sb */
   bh = __bread(g_bdev, 0, l5sb->blocksize);
-  lab5fs_sb *sb = (lab5fs_sb *) bh->b_data;
+  sb = (lab5fs_sb *) bh->b_data;
   sb->inode_blocks_free--;
   mark_buffer_dirty(bh);
   memcpy(l5sb, sb, sizeof(lab5fs_sb));
   brelse(bh);
 
-  /* Update counts, etc. */
-  inode->i_nlink++;
-  inode->i_ctime = CURRENT_TIME;
-  mark_inode_dirty(inode);
-  atomic_inc(&inode->i_count);
-  d_instantiate(new, inode);
+  d_instantiate(new, new_ino);
+  // printk(KERN_INFO "after instantiate...\n");
   return 0;
-}
+} /* lab5fs_create */
+
+
+
+//   struct buffer_head *bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
+//   char *map = (char*) bh->b_data;
+//   int ino_num = find_first_free_index(map);
+
+//   if (ino_num <= 0) {
+//     // printk(KERN_INFO "Couldn't get a free bit\n");
+//     return -ENOSPC;
+//   }
+
+//   map[ino_num] = 1;
+//   mark_buffer_dirty(bh);
+//   brelse(bh);
+
+//   int block_num = ino_num / 8 + 7;
+//   int offset = (ino_num % 8) * 64;
+
+//   /* Create a new inode */
+//   printk(KERN_INFO "Creating new inode, ino_num = %d link to %d ...\n", ino_num, ino);
+//   bh = __bread(g_bdev, block_num, l5sb->blocksize);
+//   struct lab5fs_ino *new_ino = (lab5fs_ino*) (bh->b_data + offset);
+//   new_ino->i_uid = inode->i_uid;
+//   new_ino->i_gid = inode->i_gid;
+//   new_ino->i_mode = inode->i_mode;
+//   new_ino->blocks = inode->i_blocks;
+//   new_ino->size = inode->i_size;
+//   new_ino->i_atime = CURRENT_TIME;
+//   new_ino->i_mtime = CURRENT_TIME;
+//   new_ino->i_ctime = CURRENT_TIME;
+//   strcpy(new_ino->name, name);
+//   new_ino->is_hard_link = 1;
+//   new_ino->block_to_link_to = ino;
+//   // printk(KERN_INFO "BLock to link ino to: %lu\n", new_ino->block_to_link_to);
+//   memcpy((bh->b_data + offset), &new_ino, sizeof(new_ino));
+//   mark_buffer_dirty(bh);
+//   brelse(bh);
+
+//   /* Read inode */
+//   /* Maybe not? */
+
+//   /* Modify free count in sb */
+//   bh = __bread(g_bdev, 0, l5sb->blocksize);
+//   lab5fs_sb *sb = (lab5fs_sb *) bh->b_data;
+//   sb->inode_blocks_free--;
+//   mark_buffer_dirty(bh);
+//   memcpy(l5sb, sb, sizeof(lab5fs_sb));
+//   brelse(bh);
+
+//   /* Update counts, etc. */
+//   inode->i_nlink++;
+//   inode->i_ctime = CURRENT_TIME;
+//   mark_inode_dirty(inode);
+//   atomic_inc(&inode->i_count);
+//   d_instantiate(new, inode);
+//   return 0;
+// }
 
 static struct file_operations lab5fs_file_operations = {
   .llseek = generic_file_llseek,
@@ -487,10 +587,9 @@ int find_first_free_index(const char *map)
 
 int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
 {
-  printk(KERN_INFO "********Inside lab5fs_unlink********\n");
+  printk(KERN_INFO "********Inside lab5fs_unlink********dentry->d_iname %s, index %d ********\n", dentry->d_iname, index);
   struct inode *inode = dentry->d_inode;
   int index = inode->i_ino;
-  printk(KERN_INFO "********dentry->d_iname %s, index %d ********\n", dentry->d_iname, index);
   lab5fs_sb *sb = NULL;
 
   // printk(KERN_INFO "Reading inode map...$d\n", g_bdev);
@@ -548,7 +647,7 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
 int lab5fs_create(struct inode *inode, struct dentry *dentry,
               int mode, struct nameidata *nd)
 {
-  printk(KERN_INFO "********Inside lab5fs_create********\n");
+  // printk(KERN_INFO "********Inside lab5fs_create********\n");
   struct inode *new_ino = NULL;
   lab5fs_sb *sb = NULL;
   int ino_num = -1;
@@ -598,7 +697,7 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
 
   /* Create new inode metadata on disk */
   // printk(KERN_INFO "File name is %s\n", nd->last.name);
-  printk(KERN_INFO "Creating new inode, %s ino_num = %d ...\n", nd->last.name,  ino_num);
+  printk(KERN_INFO "******** Inside lab5fs_create - Creating new inode, %s ino_num = %d ...\n", nd->last.name,  ino_num);
 
   unsigned long block_num = ino_num / 8 + 7;
   int offset = (ino_num % 8) * 64;
