@@ -4,6 +4,14 @@
 #include "lab5fs.h"
 #include <linux/namei.h>
 
+#include <linux/kernel.h>
+#include <linux/spinlock.h>
+#include <linux/sched.h>
+#include <linux/mm.h>
+#include <linux/writeback.h>
+#include <linux/blkdev.h>
+#include <linux/backing-dev.h>
+
 #define ROOT_INO 0
 static struct super_operations lab5fs_ops;
 static struct file_operations lab5fs_file_operations;
@@ -95,6 +103,18 @@ void lab5fs_read_inode(struct inode *inode)
     inode->i_bytes = l5sb->blocksize;
   }
   brelse(bh);
+
+  long i_sblock =  132 + (ino * 8000) / l5sb->blocksize;  
+  long i_eblock =  132 + ((ino +1) * 8000) / l5sb->blocksize;  
+
+  struct buffer_head *bh2 = __bread(g_bdev, i_sblock, l5sb->blocksize);
+  mark_buffer_dirty(bh2);
+  brelse(bh2);
+
+  struct buffer_head *bh3 = __bread(g_bdev, i_sblock + 1, l5sb->blocksize);
+  mark_buffer_dirty(bh3);
+  brelse(bh3);
+
 } /* read_inode */
 
 int lab5fs_write_inode(struct inode *inode, int unused)
@@ -117,17 +137,32 @@ int lab5fs_write_inode(struct inode *inode, int unused)
   ondiskino->i_mode = inode->i_mode;
   // printk(KERN_INFO "inodeondiskblks %d\n", ondiskino->blocks);
   // printk(KERN_INFO "inodeblks %d\n", inode->i_blocks);
+  // strcpy(ondiskino->name, inode->name);
   ondiskino->blocks = inode->i_blocks;
   ondiskino->size = inode->i_size;
   ondiskino->i_atime = inode->i_atime;
   ondiskino->i_ctime = inode->i_ctime;
   ondiskino->i_mtime = inode->i_mtime;
+
   // // strcpy(ondiskino->name, ondiskino->name);
   // //ondiskino->name = inode->name;  //FIXME:would be strcpy
   mark_buffer_dirty_inode(bh, inode);
   // printk(KERN_INFO "Done marking as dirty\n");
 
   brelse(bh);
+
+
+  long i_sblock =  132 + (ino * 8000) / l5sb->blocksize;  
+  long i_eblock =  132 + ((ino +1) * 8000) / l5sb->blocksize;  
+
+  struct buffer_head *bh2 = __bread(g_bdev, i_sblock, l5sb->blocksize);
+  mark_buffer_dirty(bh2);
+  brelse(bh2);
+
+  struct buffer_head *bh3 = __bread(g_bdev, i_sblock + 1, l5sb->blocksize);
+  mark_buffer_dirty(bh3);
+  brelse(bh3);
+
   return 0;
 } /* write_inode */
 
@@ -312,7 +347,36 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 int lab5fs_fsync(struct file *file, struct dentry *de, int datasync)
 {
   printk(KERN_INFO "************* fsync **************\n");
+  struct inode * inode = de->d_inode;
+  struct super_block * sb;
+  int ret;
+
   simple_sync_file(file, de, datasync);
+
+  struct writeback_control wbc = {
+    .nr_to_write = LONG_MAX,
+    .sync_mode = WB_SYNC_ALL,
+  };
+
+  sync_inode(inode, &wbc);
+
+  /* sync the inode to buffers */
+  write_inode_now(inode, 1);
+
+  /* sync the superblock to buffers */
+  sb = inode->i_sb;
+  lock_super(sb);
+  if (sb->s_op->write_super)
+    sb->s_op->write_super(sb);
+  unlock_super(sb);
+
+  /* .. finally sync the buffers to disk */
+  ret = sync_blockdev(sb->s_bdev);
+  return ret;
+
+  // simple_sync_file(file, de, datasync);
+
+
   /*int err;
   struct inode *inode = de->d_inode;
   printk(KERN_INFO "************* fsync **************\n");
@@ -376,10 +440,8 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   new_ino->i_blocks = inode->i_blocks;
   new_ino->i_size = inode->i_size;
 
-
   insert_inode_hash(new_ino);
   mark_inode_dirty(new_ino);
-  d_instantiate(new, new_ino);
 
   map[ino_num] = 1;
   mark_buffer_dirty(bh);
@@ -425,6 +487,9 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   // mark_inode_dirty(inode);
   // atomic_inc(&inode->i_count);
   // d_instantiate(new, inode);
+
+
+  d_instantiate(new, new_ino);
   return 0;
 }
 
@@ -709,6 +774,24 @@ int lab5fs_get_block(struct inode *ino, sector_t block_offset,
     return 0;
   }  
 
+  brelse(bh);
+
+  struct buffer_head *bh2 = __bread(g_bdev, i_sblock, l5sb->blocksize);
+  mark_buffer_dirty(bh2);
+  brelse(bh2);
+
+  struct buffer_head *bh3 = __bread(g_bdev, i_sblock + 1, l5sb->blocksize);
+  mark_buffer_dirty(bh3);
+  brelse(bh3);
+  
+
+  struct writeback_control wbc = {
+    .nr_to_write = LONG_MAX,
+    .sync_mode = WB_SYNC_ALL,
+  };
+
+  sync_inode(ino, &wbc);
+  
   // printk(KERN_INFO "Is hard link: %d\n", (_ino->is_hard_link));
   // if (_ino->is_hard_link) {
   //    printk(KERN_INFO "Is hard link!!!! -- btlt: %d\n", _ino->block_to_link_to);
@@ -770,12 +853,14 @@ int lab5fs_get_block(struct inode *ino, sector_t block_offset,
 static int lab5fs_writepage(struct page *page, struct writeback_control *wbc)
 {
   printk(KERN_INFO "******** lab5fs_writepage **********\n");
+  __set_page_dirty_buffers(page);
   return block_write_full_page(page, lab5fs_get_block, wbc);
 }
 
 static int lab5fs_readpage(struct file *file, struct page *page)
 {
   printk(KERN_INFO "******** lab5fs_readpage **********\n");
+  __set_page_dirty_buffers(page);
   return block_read_full_page(page, lab5fs_get_block);
 }
 
@@ -787,8 +872,9 @@ static sector_t lab5fs_bmap(struct address_space *mapping, sector_t block)
 
 static int lab5fs_prepare_write(struct file *file, struct page *page,
                                 unsigned from, unsigned to)
-{
+{ 
   printk(KERN_INFO "******** lab5fs_prepare_write **********\n");
+  __set_page_dirty_buffers(page);
   return block_prepare_write(page, from, to, lab5fs_get_block);
 }
 
