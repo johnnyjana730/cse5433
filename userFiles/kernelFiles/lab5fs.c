@@ -697,20 +697,30 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   unsigned long block_num = ino_num / 8 + 7;
   int offset = (ino_num % 8) * 64;
 
-  // bh_meta = __bread(g_bdev, block_num, l5sb->blocksize);
-  // ino_meta = (lab5fs_ino *) (bh_meta->b_data + offset);
+
+  struct buffer_head *bh_meta_tmp = NULL;
+  bh_meta_tmp = __bread(g_bdev, block_num, l5sb->blocksize);
+  lab5fs_ino *ino_meta2 = (lab5fs_ino *) (bh_meta_tmp->b_data + offset);
+  int block_to_link_to_tmp = ino_meta2->block_to_link_to;
+  int is_hard_link_tmp = ino_meta2->is_hard_link;
+  brelse(bh_meta_tmp);
+
+  // struct buffer_head *bh = __bread(g_bdev, 1, 2*l5sb->blocksize);
+  // char *map = (char*) bh->b_data;
+
+
   lab5fs_ino ino_meta;
 
   bh_meta = __bread(g_bdev, block_num, l5sb->blocksize);
   // strcpy(i.name, fname);
   strcpy(ino_meta.name, nd->last.name);
-  ino_meta.block_to_link_to = 0;
-  ino_meta.is_hard_link = 0;
+  ino_meta.block_to_link_to = block_to_link_to_tmp;
+  ino_meta.is_hard_link = is_hard_link_tmp;
   ino_meta.i_mode = mode;
   memcpy((bh_meta->b_data + offset), &ino_meta, sizeof(ino_meta));
   mark_buffer_dirty(bh_meta);
   brelse(bh_meta);
-
+  
   /* Mark bit in bitmap as now-used */
   // printk(KERN_INFO "Marking bitmap for inode as used\n");
   map[ino_num] = 1; //FIXME: Look at me
@@ -759,7 +769,7 @@ int lab5fs_get_block(struct inode *ino, sector_t block_offset,
 
   printk(KERN_INFO "node %s, i_ino %d, hard link %d\n", _ino->name, index, _ino->is_hard_link);
 
-  if (_ino->is_hard_link) {
+  if (_ino->is_hard_link == 1) {
      index = get_ori_inode_number(_ino->block_to_link_to);
   }
 
