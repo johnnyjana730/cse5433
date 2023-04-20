@@ -62,11 +62,6 @@ typedef struct lab5fs_ino {
     struct timespec i_mtime;
     struct timespec i_ctime;
 
-
-    /* For the data blocks */
-    // __u32 i_sblock;
-    // __u32 i_eblock;
-
     /* Link data */
     __u8 is_hard_link;
     __u32 block_to_link_to;
