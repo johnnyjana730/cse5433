@@ -84,34 +84,13 @@ int main(int argc, char *argv[]) {
     fseek(file, BLOCK_N(1, sb.blocksize), SEEK_SET);
     fprintf(file, "%c", 1);
 
-    /* Data bitmap */
-    // fseek(file, BLOCK_N(2, sb.blocksize), SEEK_SET);
-    // fprintf(file, "%c%c%c%c", 0, 1, 1, 1);
 
     /* Root inode */
     root_inode = create_inode("/", 1, 0, 0);
     fseek(file, INODE_N(0, INODE_SIZE), SEEK_SET);
     fwrite(&root_inode, 1, sizeof(lab5fs_ino), file);
 
-    /* Testing files */
-    // f1 = create_inode("foo.txt", 0, 1, 1);
-    // fseek(file, INODE_N(1, INODE_SIZE), SEEK_SET);
-    // fwrite(&f1, 1, sizeof(lab5fs_ino), file);
-
-    // fseek(file, BLOCK_N(130, sb.blocksize), SEEK_SET);
-    // fwrite(c, 1, len, file);
-
-    // f2 = create_inode("bar.txt", 0, 2, 2);
-    // fseek(file, INODE_N(2, INODE_SIZE), SEEK_SET);
-    // fwrite(&f2, 1, sizeof(lab5fs_ino), file);
-
-    // f3 = create_inode("biz.txt", 0, 3, 3);
-    // fseek(file, INODE_N(4, sb.blocksize), SEEK_SET);
-    // fwrite(&f3, 1, sizeof(lab5fs_ino), file);
-
-    /* Close out file */
-    //fseek(file, 10240, SEEK_SET);
-    //fprintf(file, "%c", 0);
+    
     fclose(file);
     return 0;
 }
