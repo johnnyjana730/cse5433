@@ -16,8 +16,8 @@
 /* Macros */
 #define BYTES_TO_BLOCKS(loc, blocksize) (loc/blocksize)
 #define BLOCK_N(n, blocksize)           (n*blocksize)
-#define INODE_N(n, bs)                  (BLOCK_N(7,BLOCK_SIZE)+(n*bs))
-#define DATA_N(n, bs)                   (BLOCK_N(132,BLOCK_SIZE)+(n*bs))
+#define INODE_N(n, bs)                  (BLOCK_N(33,BLOCK_SIZE)+(n*bs))
+#define DATA_N(n, bs)                   (BLOCK_N(158,BLOCK_SIZE)+(n*bs))
 
 /* Types */
 typedef struct lab5fs_sb {

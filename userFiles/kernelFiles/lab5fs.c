@@ -34,7 +34,7 @@ typedef enum _filesystem_errors
 
 int get_ori_inode_number(int ino)
 {
-  unsigned long block_num = ino / 8 + 7;
+  unsigned long block_num = ino / 8 + 33;
   int offset = (ino % 8) * 64;
   struct buffer_head *bh = NULL;
   bh = __bread(g_bdev, block_num, l5sb->blocksize);
@@ -64,7 +64,7 @@ int find_index_given_name(char * name)
 
     if (is_inode_used) {
 
-      block_num = i / 8 + 7;
+      block_num = i / 8 + 33;
       offset = (i % 8) * 64;
       bh = __bread(g_bdev, block_num, l5sb->blocksize);
       tmp_ino = (lab5fs_ino*) (bh->b_data + offset);
@@ -95,7 +95,7 @@ int check_other_link_to_this_file(int ino)
 
     if (is_inode_used) {
 
-      block_num = i / 8 + 7;
+      block_num = i / 8 + 33;
       offset = (i % 8) * 64;
       bh = __bread(g_bdev, block_num, l5sb->blocksize);
       tmp_ino = (lab5fs_ino*) (bh->b_data + offset);
@@ -117,7 +117,7 @@ void lab5fs_read_inode(struct inode *inode)
   lab5fs_ino *inode_temp = NULL;
   struct buffer_head *bh = NULL;
 
-  unsigned long block_addr = ino / 8 + 7;
+  unsigned long block_addr = ino / 8 + 33;
   int offset = (ino % 8) * 64;
 
   if(!inode)
@@ -167,8 +167,8 @@ void lab5fs_read_inode(struct inode *inode)
   }
   brelse(bh);
 
-  long i_sblock =  132 + (ino * 8000) / l5sb->blocksize;  
-  long i_eblock =  132 + ((ino +1) * 8000) / l5sb->blocksize;  
+  long i_sblock =  158 + (ino * 8000) / l5sb->blocksize;  
+  long i_eblock =  158 + ((ino +1) * 8000) / l5sb->blocksize;  
 
   struct buffer_head *bh2 = __bread(g_bdev, i_sblock, l5sb->blocksize);
   // struct buffer_head *bh2 = sb_bread(g_sb, i_sblock);
@@ -189,7 +189,7 @@ int lab5fs_write_inode(struct inode *inode, int unused)
   printk(KERN_INFO "PRE: Writing inode\n");
   int ino = inode->i_ino;
   struct buffer_head *bh;
-  int block_addr = ino / 8 + 7;
+  int block_addr = ino / 8 + 33;
   int offset = (ino % 8) * 64;
 
   // bh = __bread(g_bdev, block_addr, l5sb->blocksize);
@@ -218,8 +218,8 @@ int lab5fs_write_inode(struct inode *inode, int unused)
   brelse(bh);
 
 
-  long i_sblock =  132 + (ino * 8000) / l5sb->blocksize;  
-  long i_eblock =  132 + ((ino +1) * 8000) / l5sb->blocksize;  
+  long i_sblock =  158 + (ino * 8000) / l5sb->blocksize;  
+  long i_eblock =  158 + ((ino +1) * 8000) / l5sb->blocksize;  
 
   // struct buffer_head *bh2 = __bread(g_bdev, i_sblock, l5sb->blocksize);
   struct buffer_head *bh2 = sb_bread(g_sb, i_sblock);
@@ -355,8 +355,8 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
     if (is_inode_used) {
       inode_index++;
-      // printk(KERN_INFO "found i = %d\n", i);
-      // printk(KERN_INFO "inode_index (used) = %d\n", inode_index);
+      printk(KERN_INFO "found i = %d\n", i);
+      printk(KERN_INFO "inode_index (used) = %d\n", inode_index);
 
       if (inode_index == filp->f_pos - 1) {
         // printk(KERN_INFO "found i = %d\n", i);
@@ -369,7 +369,7 @@ int lab5fs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
   brelse(bh);
 
-  unsigned long block_num = i / 8 + 7;
+  unsigned long block_num = i / 8 + 33;
   int offset = (i % 8) * 64;
   // printk(KERN_INFO "Reading from block %d\n", block_num);
   // printk(KERN_INFO "Reading from block offset %d\n", offset);
@@ -517,7 +517,7 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   mark_buffer_dirty(bh);
   brelse(bh);
 
-  unsigned long block_num = ino_num / 8 + 7;
+  unsigned long block_num = ino_num / 8 + 33;
   int offset = (ino_num % 8) * 64;
 
   /* Create a new inode */
@@ -590,8 +590,8 @@ struct dentry *lab5fs_lookup(struct inode *dir, struct dentry *dentry,
   struct inode *_inode = NULL;
 
   for (i = 0; i < 2*l5sb->blocksize; i++) {
-    // int block = 7 + i / 8;
-    int block_num = i / 8 + 7;
+    // int block = 33 + i / 8;
+    int block_num = i / 8 + 33;
     int offset = (i % 8) * 64;
 
     int is_valid = (map[i] == 1);
@@ -645,8 +645,9 @@ int find_first_free_index(const char *map)
 {
   /* Look for free bit */
   int i;
-  for (i = 0; i < 2*l5sb->blocksize; i++) {
+  for (i = 1; i < 2*l5sb->blocksize; i++) {
     char free = map[i];
+    // printk(KERN_INFO "********1 dentry->d_iname %s, index %d ********\n", dentry->d_iname, index_ori);
     if (free == 0) {
       /* Found free bit return index */
       return i;
@@ -673,14 +674,14 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
 
     printk(KERN_INFO "********linking_file index %d ********\n", linking_file);
     // retrieve linking file data
-    unsigned long lk_block_num = linking_file / 8 + 7;
+    unsigned long lk_block_num = linking_file / 8 + 33;
     int lk_offset = (linking_file % 8) * 64;
 
     struct buffer_head *tmp_bh_meta = __bread(g_bdev, lk_block_num, l5sb->blocksize);
     lab5fs_ino *tmp_ino_meta = (lab5fs_ino *) (tmp_bh_meta->b_data + lk_offset);
 
     // copy paste to the delete file inode site
-    unsigned long ori_block_num = index / 8 + 7;
+    unsigned long ori_block_num = index / 8 + 33;
     int ori_offset = (index % 8) * 64;
 
     struct buffer_head *ori_bh_meta = __bread(g_bdev, ori_block_num, l5sb->blocksize);
@@ -720,7 +721,7 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
     brelse(bh);
 
     // delete data
-    int d_block = 132 + (index * 8000) / l5sb->blocksize;  
+    int d_block = 158 + (index * 8000) / l5sb->blocksize;  
     int d_offset = (index * 8000) % l5sb->blocksize;
 
     struct buffer_head *bh2 = __bread(g_bdev, 1, 2*l5sb->blocksize);
@@ -800,7 +801,7 @@ int lab5fs_create(struct inode *inode, struct dentry *dentry,
   // printk(KERN_INFO "File name is %s\n", nd->last.name);
   printk(KERN_INFO "Creating new inode, %s ino_num = %d ...\n", nd->last.name,  ino_num);
 
-  unsigned long block_num = ino_num / 8 + 7;
+  unsigned long block_num = ino_num / 8 + 33;
   int offset = (ino_num % 8) * 64;
 
 
@@ -863,7 +864,7 @@ int lab5fs_get_block(struct inode *ino, sector_t block_offset,
   printk(KERN_INFO "******* get_block *********\n");
   printk(KERN_INFO "BO: %lu\n", block_offset);
 
-  unsigned long block_num = ino->i_ino / 8 + 7;
+  unsigned long block_num = ino->i_ino / 8 + 33;
   int offset = (ino->i_ino % 8) * 64;
   // printk(KERN_INFO "Reading from block %d\n", block_num);
   // printk(KERN_INFO "Reading from block offset %d\n", offset);
@@ -884,8 +885,8 @@ int lab5fs_get_block(struct inode *ino, sector_t block_offset,
   }
 
   long phys;
-  long i_sblock =  132 + (index * 8000) / l5sb->blocksize;  
-  long i_eblock =  132 + ((index +1) * 8000) / l5sb->blocksize;  
+  long i_sblock =  158 + (index * 8000) / l5sb->blocksize;  
+  long i_eblock =  158 + ((index +1) * 8000) / l5sb->blocksize;  
   phys = i_sblock + block_offset;
   
   printk(KERN_INFO "i_sblock %d, i_eblock %d\n", i_sblock, i_eblock);
