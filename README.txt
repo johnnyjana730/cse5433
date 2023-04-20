@@ -7,20 +7,20 @@ For file read and write, to simplify the implementation, we decided to allocate 
 
 Limitations and bugs:
 
-File has fixed max size
-File blocks allocation is not fragmented
+File has 15 data blocks, so it has fixed max size.
+File blocks allocation is not fragmented.
 
 
 Layout:
 
 || sb || Inode bitmap || Data bitmap || Inodes || Data blocks ||
 
-block size: 512 byte
-inode size: 64 byte
+block size: 512 bytes
+inode size: 64 bytes
 inode count: 1000
 inode blocks: 125 blocks
 inode bitmap: 2 blocks
-data blocks: 2048 blocks
-data bitmap: 4 blocks
+data bitmap: 30 blocks
+data blocks: 1000*15 blocks
 file count: 1000
-file max size: 512*15 byte
+file max size: 512*15 bytes
