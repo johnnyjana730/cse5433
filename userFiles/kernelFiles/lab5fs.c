@@ -687,8 +687,8 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
     lab5fs_ino *ori_ino_meta = (lab5fs_ino *) (ori_bh_meta->b_data + ori_offset);
 
     strcpy(ori_ino_meta->name, tmp_ino_meta->name);
-    ori_ino_meta->block_to_link_to = tmp_ino_meta->block_to_link_to;
-    ori_ino_meta->is_hard_link = tmp_ino_meta->is_hard_link;
+    ori_ino_meta->block_to_link_to = 0;
+    ori_ino_meta->is_hard_link = 0;
     ori_ino_meta->i_mode = tmp_ino_meta->i_mode;
     mark_buffer_dirty(ori_bh_meta);
     brelse(ori_bh_meta);
@@ -723,23 +723,24 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
     int d_block = 132 + (index * 8000) / l5sb->blocksize;  
     int d_offset = (index * 8000) % l5sb->blocksize;
 
-    bh = __bread(g_bdev, d_block, l5sb->blocksize);
-    memset((bh->b_data + d_offset), 0, 8000);
-    mark_buffer_dirty(bh);
-    brelse(bh);
+    struct buffer_head *bh2 = __bread(g_bdev, 1, 2*l5sb->blocksize);
+    bh2 = __bread(g_bdev, d_block, l5sb->blocksize);
+    memset((bh2->b_data + d_offset), 0, 8000);
+    mark_buffer_dirty(bh2);
+    brelse(bh2);
 
   }
 
-  struct buffer_head *bh = NULL;
+  struct buffer_head *bh3 = NULL;
   /* Update free inodes */
   // printk(KERN_INFO "Updating free inode count...\n");
   // bh = __bread(g_bdev, 0, l5sb->blocksize);
-  bh = sb_bread(g_sb, 0);
-  sb = (lab5fs_sb*) bh->b_data;
+  bh3 = sb_bread(g_sb, 0);
+  sb = (lab5fs_sb*) bh3->b_data;
   sb->inode_blocks_free++;
   memcpy(l5sb, sb, sizeof(lab5fs_sb));
-  mark_buffer_dirty(bh);
-  brelse(bh);
+  mark_buffer_dirty(bh3);
+  brelse(bh3);
 
   return 0;
 }
