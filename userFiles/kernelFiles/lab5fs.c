@@ -133,6 +133,7 @@ void lab5fs_read_inode(struct inode *inode)
   if (!bh) { printk(KERN_INFO "BUFFER HEAD IS NULL!\n"); }
 
   inode_temp = (lab5fs_ino *) (bh->b_data + offset);
+
   
   if (!inode_temp) { printk(KERN_INFO "INODE TEMP IS NULL!\n"); }
   printk(KERN_INFO "Filling out inode info...\n");
@@ -186,6 +187,7 @@ int lab5fs_write_inode(struct inode *inode, int unused)
   printk(KERN_INFO "PRE: Writing inode\n");
   int ino = inode->i_ino;
   struct buffer_head *bh;
+
   int block_addr = ino / 8 + 33;
   int offset = (ino % 8) * 64;
 
@@ -464,8 +466,9 @@ static int lab5fs_link(struct dentry *old, struct inode *dir, struct dentry *new
   mark_buffer_dirty(bh);
   brelse(bh);
 
+
   unsigned long block_num = ino_num / 8 + 33;
-  int offset = (ino_num % 8) * 64;
+
 
   /* Create a new inode */
   printk(KERN_INFO "Creating new inode, ino_num = %d link to %d ...\n", ino_num, ino);
@@ -535,6 +538,7 @@ struct dentry *lab5fs_lookup(struct inode *dir, struct dentry *dentry,
   struct inode *_inode = NULL;
 
   for (i = 0; i < 2*l5sb->blocksize; i++) {
+
     // int block = 33 + i / 8;
     int block_num = i / 8 + 33;
     int offset = (i % 8) * 64;
@@ -652,6 +656,7 @@ int lab5fs_unlink(struct inode *dir, struct dentry *dentry)
     brelse(bh);
 
   }
+
 
   if (linking_file == -1){
 
